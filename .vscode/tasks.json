@@ -1,0 +1,82 @@
+{
+    "version": "2.0.0",
+
+    "tasks": [
+        {
+            "label": "Criar build",
+            "type": "shell",
+            "command": "if not exist \"${workspaceFolder}\\build\" mkdir \"${workspaceFolder}\\build\"",
+            "options": {
+                "shell": {
+                    "executable": "cmd.exe",
+                    "args": [
+                        "/d",
+                        "/c"
+                    ]
+                }
+            },
+            "problemMatcher": []
+        },
+
+        {
+            "label": "Compilar SDL3",
+            "type": "process",
+            "command": "g++",
+
+            "args": [
+                "${workspaceFolder}\\main.cpp",
+
+                "-g",
+
+                "-I${workspaceFolder}\\SDL3\\include",
+
+                "-L${workspaceFolder}\\SDL3\\lib",
+
+                "-o",
+                "${workspaceFolder}\\build\\jogo.exe",
+
+                "-lSDL3"
+            ],
+
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+
+        {
+            "label": "Copiar SDL3.dll",
+            "type": "shell",
+
+            "command": "copy /Y \"${workspaceFolder}\\SDL3\\bin\\SDL3.dll\" \"${workspaceFolder}\\build\\SDL3.dll\"",
+
+            "options": {
+                "shell": {
+                    "executable": "cmd.exe",
+                    "args": [
+                        "/d",
+                        "/c"
+                    ]
+                }
+            },
+
+            "problemMatcher": []
+        },
+
+        {
+            "label": "Build SDL3",
+
+            "dependsOrder": "sequence",
+
+            "dependsOn": [
+                "Criar build",
+                "Compilar SDL3",
+                "Copiar SDL3.dll"
+            ],
+
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}
