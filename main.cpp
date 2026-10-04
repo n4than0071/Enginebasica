@@ -1,8 +1,12 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
+#include "fonte.h"
+#include "obj.h"
 #include <cmath>
 #include <iostream>
 #include <vector>
+#include <string>
+#include <cctype>
 
 using namespace std;
 
@@ -51,6 +55,11 @@ class Sys{
         vector<Coord> pontos;
         vector<lines> linhas;
 
+        vector<Vertices> ObjV;
+        vector<Face> ObjF;
+
+        RGBA corObjeto;
+
         void screenResolution(int L,int A)// largura / altura
         {
             width = L;
@@ -98,43 +107,231 @@ class Sys{
             };
         };
 
-        void Text(RGBA corText,int sizeWidth,int sizeHeight,int Zbuffer,CoordScreen XY)// Cor do texto, Tamanho largura, tamanho altura, posição na camada, x,y
+        int charToFonte(char letra)
         {
-            r = corText.Red;
-            g = corText.Green;
-            b = corText.Blue;
-            a = corText.Alpha;
+            letra = std::toupper(static_cast<unsigned char>(letra));
 
-            sizeW  = sizeWidth;
-            sizeH  = sizeHeight;
-            zbuffer  = Zbuffer;
+            switch (letra)
+            {
+                // Letras
+                case 'A': return 0;
+                case 'B': return 1;
+                case 'C': return 10;
+                case 'D': return 11;
+                case 'E': return 2;
+                case 'F': return 3;
+                case 'G': return 12;
+                case 'H': return 13;
+                case 'I': return 4;
+                case 'J': return 5;
+                case 'K': return 14;
+                case 'L': return 15;
+                case 'M': return 6;
+                case 'N': return 7;
+                case 'O': return 16;
+                case 'P': return 17;
+                case 'Q': return 8;
+                case 'R': return 9;
+                case 'S': return 18;
+                case 'T': return 19;
+                case 'U': return 20;
+                case 'V': return 21;
+                case 'W': return 30;
+                case 'X': return 31;
+                case 'Y': return 22;
+                case 'Z': return 23;
 
-            x = XY.X;
-            y = XY.Y;
-   
+                // Números
+                case '0': return 39;
+                case '1': return 34;
+                case '2': return 35;
+                case '3': return 26;
+                case '4': return 27;
+                case '5': return 36;
+                case '6': return 37;
+                case '7': return 28;
+                case '8': return 29;
+                case '9': return 38;
 
+                // Pontuação
+                case '!': return 24;
+                case '?': return 25;
+                case ',': return 32;
+                case '.': return 33;
+                case '+': return 40;
+                case '-': return 50;
+                case '(': return 52;
+                case ')': return 53;
+                case '=': return 54;
+                case '#': return 55;
+                case '%': return 58;
+                case '$': return 59;
+                case '<': return 60;
+                case '>': return 61;
+                case ':': return 62;
+                case ';': return 63;
+
+                // Espaço
+                case ' ': return -2;
+            }
+
+        return -1;
         };
 
-        void Objeto(bool Show,Coord xyzObj ,int Size ,RGBA corObj)// mostra objeto, coordenadas x,y,z, tamanho, cor R,G,B,A
-        {   
+        void Text( SDL_Renderer* renderer, string texto, RGBA corText, int sizeWidth, int sizeHeight, CoordScreen XY)
+        {
+            // Define a cor do texto
+            SDL_SetRenderDrawColor(
+                renderer,
+                corText.Red,
+                corText.Green,
+                corText.Blue,
+                corText.Alpha
+            );
+
+            int cursorX = XY.X;
+            int cursorY = XY.Y;
+
+            // Passa por cada letra do texto
+            for (char letra : texto)
+            {
+                int simbolo = charToFonte(letra);
+
+                // ESPAÇO
+                if (simbolo == -2)
+                {
+                    cursorX += 11 * sizeWidth;
+                    continue;
+                }
+
+                // Caractere que não existe na nossa fonte
+                if (simbolo == -1)
+                {
+                    continue;
+                }
+
+                // Cada caractere possui 10 linhas
+                for (int linha = 0; linha < 10; linha++)
+                {
+                    uint16_t bits = fonte[simbolo][linha];
+
+                    // Cada linha possui 10 pixels
+                    for (int coluna = 0; coluna < 10; coluna++)
+                    {
+                        // Descobre se aquele pixel é 0 ou 1
+                        bool pixel = bits & (1 << (9 - coluna));
+
+                        if (pixel)
+                        {
+                            SDL_FRect quadrado = {
+                                static_cast<float>(
+                                    cursorX + coluna * sizeWidth
+                                ),
+
+                                static_cast<float>(
+                                    cursorY + linha * sizeHeight
+                                ),
+
+                                static_cast<float>(sizeWidth),
+                                static_cast<float>(sizeHeight)
+                            };
+
+                            SDL_RenderFillRect(
+                                renderer,
+                                &quadrado
+                            );
+                        }
+                    }
+                }
+
+                // Anda para a posição da próxima letra
+                cursorX += 11 * sizeWidth;
+            }
+        };
+
+        void Objeto(
+            bool Show,
+            Coord xyzObj,
+            float Size,
+            RGBA corObj,
+            int Obj
+        )
+        {
             Aparece = Show;
-            size = Size;
 
-            r = corObj.Red;
-            g = corObj.Green;
-            b = corObj.Blue;
-            a = corObj.Alpha;
+            corObjeto = corObj;
 
-            x = xyzObj.X;
-            y = xyzObj.Y;
-            z = xyzObj.Z;
+            ObjV.clear();
+            ObjF.clear();
 
-            
+            if (!Aparece)
+            {
+                return;
+            }
 
+            switch (Obj)
+            {
+                // ======================
+                // QUADRADO
+                // ======================
+
+                case 1:
+                {
+                    for (size_t i = 0; i < std::size(Quadrado_Vertices); i++)
+                    {
+                        Vertices novoPonto = {
+
+                            xyzObj.X + Quadrado_Vertices[i].X * Size,
+
+                            xyzObj.Y + Quadrado_Vertices[i].Y * Size,
+
+                            xyzObj.Z + Quadrado_Vertices[i].Z * Size
+                        };
+
+                        ObjV.push_back(novoPonto);
+                    }
+
+
+                    for (size_t i = 0; i < std::size(Quadrado_Faces); i++)
+                    {
+                        ObjF.push_back(Quadrado_Faces[i]);
+                    }
+
+                    break;
+                }
+
+
+                // ======================
+                // TRIÂNGULO
+                // ======================
+
+                case 2:
+                {
+                    for (size_t i = 0; i < std::size(Triangulo_Vertices); i++)
+                    {
+                        Vertices novoPonto = {
+
+                            xyzObj.X + Triangulo_Vertices[i].X * Size,
+
+                            xyzObj.Y + Triangulo_Vertices[i].Y * Size,
+
+                            xyzObj.Z + Triangulo_Vertices[i].Z * Size
+                        };
+
+                        ObjV.push_back(novoPonto);
+                    }
+
+
+                    for (size_t i = 0; i < std::size(Triangulo_Faces); i++)
+                    {
+                        ObjF.push_back(Triangulo_Faces[i]);
+                    }
+
+                    break;
+                };
+            };
         };
-
-};
-
+    };
 
 int main(int argc, char* argv[])
 {
@@ -142,7 +339,8 @@ int main(int argc, char* argv[])
     Sys Sistema;
 
     Sistema.screenResolution(1000,800);
-    Sistema.Ui(true, {0, 0, 255, 255});
+    Sistema.Ui(false, {0, 0, 255, 255});
+    Sistema.Objeto( true, {100, 100, 0}, 100, {100, 50, 20, 255}, 2);
     
 
     // 1. Inicializa o sistema de vídeo da SDL
@@ -201,8 +399,14 @@ int main(int argc, char* argv[])
                     Sistema.criarGrid = !Sistema.criarGrid;
                 }
             }
+            if (evento.type == SDL_EVENT_KEY_DOWN)
+            {
+                if (evento.key.key == SDLK_V && !evento.key.repeat)
+                {
+                    Sistema.Aparece = !Sistema.Aparece;
+                }
+            }
         }
-
 
         // DESENHO
 
@@ -228,7 +432,74 @@ int main(int argc, char* argv[])
                     linha.y1);
             };
         };
-        
+        if (Sistema.Aparece)
+        {
+            vector<SDL_Vertex> vertices;
+            vector<int> indices;
+
+
+            // ==========================
+            // CONVERTE NOSSOS VÉRTICES
+            // PARA VÉRTICES DO SDL
+            // ==========================
+
+            for (Vertices ponto : Sistema.ObjV)
+            {
+                SDL_Vertex vertice;
+
+                vertice.position.x = ponto.X;
+                vertice.position.y = ponto.Y;
+
+
+                vertice.color = {
+                    Sistema.corObjeto.Red   / 255.0f,
+                    Sistema.corObjeto.Green / 255.0f,
+                    Sistema.corObjeto.Blue  / 255.0f,
+                    Sistema.corObjeto.Alpha / 255.0f
+                };
+
+
+                vertice.tex_coord = {
+                    0.0f,
+                    0.0f
+                };
+
+
+                vertices.push_back(vertice);
+            }
+
+
+            // ==========================
+            // CONVERTE AS FACES
+            // EM ÍNDICES
+            // ==========================
+
+            for (Face face : Sistema.ObjF)
+            {
+                indices.push_back(face.a);
+                indices.push_back(face.b);
+                indices.push_back(face.c);
+            }
+
+
+            // ==========================
+            // DESENHA
+            // ==========================
+
+            SDL_RenderGeometry(
+                renderer,
+                nullptr,
+
+                vertices.data(),
+                static_cast<int>(vertices.size()),
+
+                indices.data(),
+                static_cast<int>(indices.size())
+            );
+        }
+
+        Sistema.Text( renderer, "HELLO WORLD 123!", {255, 255, 255, 255}, 3, 3, {50, 50});
+
         // Muda a cor para desenhar o ponto 0
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
         
