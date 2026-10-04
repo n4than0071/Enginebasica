@@ -14,28 +14,42 @@ bool isEven(int Integer)
     }
 
     return false;
-}
+};
 // menor que < // maior que >
 
 struct line{
     int x0, x1, y0, y1;
 };//  int x0, x1, y0, y1
-struct Obj{
-    bool Aparece;
-    int x, y, z;
-    int size;
-    int r,g,b;
+struct RGBA{
+    int Red, Green, Blue, Alpha;
+};
+struct Coord{
+    int X, Y, Z;
+};
+struct CoordScreen{
+    int X, Y;
+};
+struct lines{
+    CoordScreen a, b;
 };
 
 class Sys{
     public:
+        bool Aparece;
+        bool criarGrid;
+
+        int x, y, z;
+        int xCam, yCam, zBuffer;
+        int r, g, b, a;
+        int sizeW, sizeH, zbuffer; 
+
+        int size;
         int width;
         int height;
-        int x, y, z;
-        int r, g, b, a;
-        bool criarGrid;
+
         vector<line> grid;
-        
+        vector<Coord> pontos;
+        vector<lines> linhas;
 
         void screenResolution(int L,int A)// largura / altura
         {
@@ -43,13 +57,13 @@ class Sys{
             height = A;
         };
 
-        void Ui(bool Grid,int Red,int Green,int Blue,int Alpha)
+        void Ui(bool Grid,RGBA corGrid)
         {
             criarGrid = Grid;
-            r = Red;
-            g = Green;
-            b = Blue;
-            a = Alpha;
+            r = corGrid.Red;
+            g = corGrid.Green;
+            b = corGrid.Blue;
+            a = corGrid.Alpha;
 
             if(isEven(height)){
                 y = height / 2;
@@ -59,13 +73,14 @@ class Sys{
             };
 
             //grid
+            grid.clear();
             if (criarGrid){
                 for (int i = x; i < width; i += 50)
                 {   // horizontal depois do 0 pra direita + ->
                     line novalinha = {i, i, 0, height};
                     grid.push_back(novalinha);
                 }
-                for (int t = x; t > 0; t -= 50)
+                for (int t = x - 50; t > 0; t -= 50)
                 {   // horizontal antes do 0 pra esquerda <- +
                     line novalinha = {t, t, 0, height};
                     grid.push_back(novalinha);
@@ -75,12 +90,46 @@ class Sys{
                     line novalinha = {0, width, d, d};
                     grid.push_back(novalinha);
                 }
-                for (int h = y; h > 0; h -= 50)
+                for (int h = y - 50; h > 0; h -= 50)
                 {   // vertical antede de 0 pra cima
                     line novalinha = {0, width, h, h};
                     grid.push_back(novalinha);
                 }
             };
+        };
+
+        void Text(RGBA corText,int sizeWidth,int sizeHeight,int Zbuffer,CoordScreen XY)// Cor do texto, Tamanho largura, tamanho altura, posição na camada, x,y
+        {
+            r = corText.Red;
+            g = corText.Green;
+            b = corText.Blue;
+            a = corText.Alpha;
+
+            sizeW  = sizeWidth;
+            sizeH  = sizeHeight;
+            zbuffer  = Zbuffer;
+
+            x = XY.X;
+            y = XY.Y;
+   
+
+        };
+
+        void Objeto(bool Show,Coord xyzObj ,int Size ,RGBA corObj)// mostra objeto, coordenadas x,y,z, tamanho, cor R,G,B,A
+        {   
+            Aparece = Show;
+            size = Size;
+
+            r = corObj.Red;
+            g = corObj.Green;
+            b = corObj.Blue;
+            a = corObj.Alpha;
+
+            x = xyzObj.X;
+            y = xyzObj.Y;
+            z = xyzObj.Z;
+
+            
 
         };
 
@@ -93,7 +142,7 @@ int main(int argc, char* argv[])
     Sys Sistema;
 
     Sistema.screenResolution(1000,800);
-    Sistema.Ui(true, 0, 0, 255, 255);
+    Sistema.Ui(true, {0, 0, 255, 255});
     
 
     // 1. Inicializa o sistema de vídeo da SDL
@@ -182,7 +231,7 @@ int main(int argc, char* argv[])
         
         // Muda a cor para desenhar o ponto 0
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-
+        
         SDL_FRect ponto = {
         static_cast<float>(Sistema.x - 2), 
         static_cast<float>(Sistema.y - 2),
