@@ -31,10 +31,10 @@ struct RGBA{
     int Red, Green, Blue, Alpha;
 };
 struct Coord{
-    int X, Y, Z;
+    float X, Y, Z;
 };
 struct CoordScreen{
-    int X, Y;
+    float X, Y;
 };
 struct lines{
     CoordScreen a, b;
@@ -258,6 +258,7 @@ class Sys{
             }
         };
 };
+
         
 
 class World{
@@ -269,42 +270,7 @@ class World{
 
         RGBA corObjeto;
 
-        void Camera(Coord Posicao,int Fov,int Rotacao,int L,int A,Coord object_Vertice)
-        {
-
-            Vertices Camera_pontos[9] = {
-                {0.5,0.5,0.5},
-                {0.5,0,0.5},
-                {0.5,1,0.5},
-                {0,0.5,0.5},
-                {0,0,0.5},
-                {0,1,0.5},
-                {1,0.5,0.5},
-                {1,0,0.5},
-                {1,1,0.5}
-            };
-
-            for (size_t i = 0; i < 9; i++)
-            {
-                Camera_pontos[i].X *= L;
-                Camera_pontos[i].Y *= A;
-            };
-            
-            float aspect = 16.0f / 9.0f;
-
-            float limiteY = object_Vertice.Z * tan((Fov / 2.0f) * M_PI / 180.0f);
-            float limiteX = limiteY * aspect;
-
-            float porcentagemX = object_Vertice.X / limiteX;
-            float porcentagemY = object_Vertice.Y / limiteY;
-
-            float screenX = Camera_pontos[0].X + porcentagemX * Camera_pontos[0].X;
-            float screenY = Camera_pontos[0].Y - porcentagemY * Camera_pontos[0].Y;
-
-
-        }
-
-        void Objeto( bool Show, Coord xyzObj, float Size, RGBA corObj, int Obj)
+        void Objeto( bool Show, Coord xyzObj, float Rotacao, float Size, RGBA corObj, int Obj)
         {
             Aparece = Show;
 
@@ -312,6 +278,9 @@ class World{
 
             ObjV.clear();
             ObjF.clear();
+
+            float angulo = Rotacao;
+            float rad = angulo * M_PI / 180.0f;
 
             if (!Aparece)
             {
@@ -369,7 +338,57 @@ class World{
 
                     break;
                 };
+                case 3:
+                {
+                    for (size_t i = 0; i < std::size(Cubo_vertices); i++)
+                    {
+                        Vertices novoPonto = {
+                            xyzObj.X + (Cubo_vertices[i].X * cos(rad) + Cubo_vertices[i].Z * sin(rad))* Size,
+
+                            xyzObj.Y + Cubo_vertices[i].Y * Size,
+
+                            xyzObj.Z + (-Cubo_vertices[i].X * sin(rad) + Cubo_vertices[i].Z * cos(rad)) * Size
+                        };
+
+                        ObjV.push_back(novoPonto);
+                    };
+
+                    for (size_t i = 0; i < std::size(Cubo_Faces); i++)
+                    {
+                        ObjF.push_back(Cubo_Faces[i]);
+                    };
+                    
+                    break;
+                };
             };
+        };
+
+        CoordScreen Camera(Coord Posicao,int Fov,int Rotacao,int L,int A,Coord object_Vertice)
+        {
+            float aspect = static_cast<float>(L) / A;
+
+            float limiteY =
+                object_Vertice.Z *
+                tan((Fov / 2.0f) * M_PI / 180.0f);
+
+            float limiteX = limiteY * aspect;
+
+            float porcentagemX = object_Vertice.X / limiteX;
+            float porcentagemY = object_Vertice.Y / limiteY;
+
+            float screenX =
+                (L / 2.0f) +
+                porcentagemX * (L / 2.0f);
+
+            float screenY =
+                (A / 2.0f) -
+                porcentagemY * (A / 2.0f);
+
+            return {
+                screenX,
+                screenY
+            };
+
         };
     };
 
@@ -420,7 +439,7 @@ int main(int argc, char* argv[])
     Sistema.UiGrid( false,{0,255,255,255});
     
     
-    Mundo.Objeto( true, {100, 100, 0}, 100, {0, 0, 255, 255}, 2);
+    float rot = 0;
     
         
     while (rodando)
@@ -445,11 +464,20 @@ int main(int argc, char* argv[])
                     Mundo.Aparece = !Mundo.Aparece;
                     Sistema.criarGrid = !Sistema.criarGrid;
                 };
+                if (evento.key.key == SDLK_LEFT && !evento.key.repeat)
+                {
+                    rot = rot - 15;
+                };
+                if (evento.key.key == SDLK_RIGHT && !evento.key.repeat)
+                {
+                    rot = rot + 15;
+                }
+                
 
             }
         }
 
-        
+        Mundo.Objeto( true, {0, 0, 100}, rot , 10, {0, 0, 255, 255}, 3);
 
         // DESENHO
 
@@ -487,10 +515,19 @@ int main(int argc, char* argv[])
 
             for (Vertices ponto : Mundo.ObjV)
             {
+                CoordScreen tela = Mundo.Camera(
+                    {0,0,0},
+                    70,
+                    0,
+                    Sistema.width,
+                    Sistema.height,
+                    {ponto.X,ponto.Y,ponto.Z}
+                );
+
                 SDL_Vertex vertice;
 
-                vertice.position.x = ponto.X;
-                vertice.position.y = ponto.Y;
+                vertice.position.x = tela.X;
+                vertice.position.y = tela.Y;
 
 
                 vertice.color = SDL_FColor{
@@ -543,7 +580,7 @@ int main(int argc, char* argv[])
         
 
         // Muda a cor para desenhar o ponto 0
-        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 100);
         
         SDL_FRect ponto = {
         static_cast<float>(Sistema.x - 2), 
