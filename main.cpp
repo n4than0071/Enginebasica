@@ -1,12 +1,15 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
-#include "fonte.h"
-#include "obj.h"
 #include <cmath>
 #include <iostream>
 #include <vector>
 #include <string>
 #include <cctype>
+#include <cstdlib>
+
+
+#include "fonte.h"
+#include "obj.h"
 
 using namespace std;
 
@@ -39,7 +42,6 @@ struct lines{
 
 class Sys{
     public:
-        bool Aparece;
         bool criarGrid;
 
         int x, y, z;
@@ -55,18 +57,23 @@ class Sys{
         vector<Coord> pontos;
         vector<lines> linhas;
 
-        vector<Vertices> ObjV;
-        vector<Face> ObjF;
-
-        RGBA corObjeto;
-
         void screenResolution(int L,int A)// largura / altura
         {
             width = L;
             height = A;
+
+            /*float constant = 1.777f;
+            float ratio = static_cast<float>(width) / height;
+
+            if (abs(ratio - constant) < 0.0001f)
+            {
+                SDL_Quit();
+                exit(1);
+            };*/            
         };
 
-        void Ui(bool Grid,RGBA corGrid)
+        // Cria uma grid na tela completamente desnecessario
+        void UiGrid(bool Grid,RGBA corGrid)
         {
             criarGrid = Grid;
             r = corGrid.Red;
@@ -104,6 +111,8 @@ class Sys{
                     line novalinha = {0, width, h, h};
                     grid.push_back(novalinha);
                 }
+
+                
             };
         };
 
@@ -248,14 +257,54 @@ class Sys{
                 cursorX += 11 * sizeWidth;
             }
         };
+};
+        
 
-        void Objeto(
-            bool Show,
-            Coord xyzObj,
-            float Size,
-            RGBA corObj,
-            int Obj
-        )
+class World{
+    public:
+        bool Aparece;
+
+        vector<Vertices> ObjV;
+        vector<Face> ObjF;
+
+        RGBA corObjeto;
+
+        void Camera(Coord Posicao,int Fov,int Rotacao,int L,int A,Coord object_Vertice)
+        {
+
+            Vertices Camera_pontos[9] = {
+                {0.5,0.5,0.5},
+                {0.5,0,0.5},
+                {0.5,1,0.5},
+                {0,0.5,0.5},
+                {0,0,0.5},
+                {0,1,0.5},
+                {1,0.5,0.5},
+                {1,0,0.5},
+                {1,1,0.5}
+            };
+
+            for (size_t i = 0; i < 9; i++)
+            {
+                Camera_pontos[i].X *= L;
+                Camera_pontos[i].Y *= A;
+            };
+            
+            float aspect = 16.0f / 9.0f;
+
+            float limiteY = object_Vertice.Z * tan((Fov / 2.0f) * M_PI / 180.0f);
+            float limiteX = limiteY * aspect;
+
+            float porcentagemX = object_Vertice.X / limiteX;
+            float porcentagemY = object_Vertice.Y / limiteY;
+
+            float screenX = Camera_pontos[0].X + porcentagemX * Camera_pontos[0].X;
+            float screenY = Camera_pontos[0].Y - porcentagemY * Camera_pontos[0].Y;
+
+
+        }
+
+        void Objeto( bool Show, Coord xyzObj, float Size, RGBA corObj, int Obj)
         {
             Aparece = Show;
 
@@ -271,9 +320,6 @@ class Sys{
 
             switch (Obj)
             {
-                // ======================
-                // QUADRADO
-                // ======================
 
                 case 1:
                 {
@@ -300,11 +346,6 @@ class Sys{
                     break;
                 }
 
-
-                // ======================
-                // TRIÂNGULO
-                // ======================
-
                 case 2:
                 {
                     for (size_t i = 0; i < std::size(Triangulo_Vertices); i++)
@@ -321,7 +362,6 @@ class Sys{
                         ObjV.push_back(novoPonto);
                     }
 
-
                     for (size_t i = 0; i < std::size(Triangulo_Faces); i++)
                     {
                         ObjF.push_back(Triangulo_Faces[i]);
@@ -335,12 +375,8 @@ class Sys{
 
 int main(int argc, char* argv[])
 {
-
     Sys Sistema;
-
-    Sistema.screenResolution(1000,800);
-    Sistema.Ui(false, {0, 0, 255, 255});
-    Sistema.Objeto( true, {100, 100, 0}, 100, {100, 50, 20, 255}, 2);
+    World Mundo;
     
 
     // 1. Inicializa o sistema de vídeo da SDL
@@ -350,9 +386,11 @@ int main(int argc, char* argv[])
         return 1;
     };
 
+    Sistema.screenResolution(1280,720);
+
     // 2. Cria a janela
     SDL_Window* janela = SDL_CreateWindow(
-        "Micro Roguelike",
+        "Micro Engine",
         Sistema.width,
         Sistema.height,
         0
@@ -377,6 +415,13 @@ int main(int argc, char* argv[])
     };
 
     bool rodando = true;
+
+    
+    Sistema.UiGrid( false,{0,255,255,255});
+    
+    
+    Mundo.Objeto( true, {100, 100, 0}, 100, {0, 0, 255, 255}, 2);
+    
         
     while (rodando)
     {
@@ -393,20 +438,18 @@ int main(int argc, char* argv[])
             // presionar para desativar grid
 
             if (evento.type == SDL_EVENT_KEY_DOWN)
-            {
-                if (evento.key.key == SDLK_G && !evento.key.repeat)
-                {
-                    Sistema.criarGrid = !Sistema.criarGrid;
-                }
-            }
-            if (evento.type == SDL_EVENT_KEY_DOWN)
-            {
+            {   
+
                 if (evento.key.key == SDLK_V && !evento.key.repeat)
                 {
-                    Sistema.Aparece = !Sistema.Aparece;
-                }
+                    Mundo.Aparece = !Mundo.Aparece;
+                    Sistema.criarGrid = !Sistema.criarGrid;
+                };
+
             }
         }
+
+        
 
         // DESENHO
 
@@ -417,33 +460,32 @@ int main(int argc, char* argv[])
         SDL_RenderClear(renderer);
     
         // Cria grid caso true
-        if (Sistema.criarGrid)
-        {
-            SDL_SetRenderDrawColor(renderer, Sistema.r, Sistema.g, Sistema.b, Sistema.a);
+        
+        if(Sistema.criarGrid){
+            SDL_SetRenderDrawColor( renderer, Sistema.r, Sistema.g, Sistema.b, Sistema.a);
 
-            for (line linha : Sistema.grid)
-            {
-                
-                SDL_RenderLine(
-                    renderer,
-                    linha.x0,
-                    linha.y0,
-                    linha.x1,
-                    linha.y1);
-            };
-        };
-        if (Sistema.Aparece)
+                for (line linha : Sistema.grid){
+                    SDL_RenderLine(
+                        renderer,
+                        linha.x0,
+                        linha.y0,
+                        linha.x1,
+                        linha.y1
+                    );
+                };
+        }
+
+        if (Mundo.Aparece)
         {
             vector<SDL_Vertex> vertices;
             vector<int> indices;
-
 
             // ==========================
             // CONVERTE NOSSOS VÉRTICES
             // PARA VÉRTICES DO SDL
             // ==========================
 
-            for (Vertices ponto : Sistema.ObjV)
+            for (Vertices ponto : Mundo.ObjV)
             {
                 SDL_Vertex vertice;
 
@@ -451,11 +493,11 @@ int main(int argc, char* argv[])
                 vertice.position.y = ponto.Y;
 
 
-                vertice.color = {
-                    Sistema.corObjeto.Red   / 255.0f,
-                    Sistema.corObjeto.Green / 255.0f,
-                    Sistema.corObjeto.Blue  / 255.0f,
-                    Sistema.corObjeto.Alpha / 255.0f
+                vertice.color = SDL_FColor{
+                    Mundo.corObjeto.Red   / 255.0f,
+                    Mundo.corObjeto.Green / 255.0f,
+                    Mundo.corObjeto.Blue  / 255.0f,
+                    Mundo.corObjeto.Alpha / 255.0f
                 };
 
 
@@ -468,13 +510,12 @@ int main(int argc, char* argv[])
                 vertices.push_back(vertice);
             }
 
-
             // ==========================
             // CONVERTE AS FACES
             // EM ÍNDICES
             // ==========================
 
-            for (Face face : Sistema.ObjF)
+            for (Face face : Mundo.ObjF)
             {
                 indices.push_back(face.a);
                 indices.push_back(face.b);
@@ -498,7 +539,8 @@ int main(int argc, char* argv[])
             );
         }
 
-        Sistema.Text( renderer, "HELLO WORLD 123!", {255, 255, 255, 255}, 3, 3, {50, 50});
+        Sistema.Text( renderer, "Engine 0.0.1", {255, 255, 255, 255}, 1, 1, {5, 5});
+        
 
         // Muda a cor para desenhar o ponto 0
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
